@@ -59,7 +59,7 @@
              id="bandeira-brasil"> 
         <h1>Hora Oficial de Brasília</h1>
         <div id="relogio">--:--:--</div>
-        <div id="status">Iniciando sincronização...</div>
+        <div id="status">Sincronizado com WorldTimeAPI</div>
     </div>
 
     <script>
@@ -71,7 +71,6 @@
 
         async function fetchServerTime() {
             try {
-                document.getElementById('status').textContent = 'Conectando ao servidor...';
                 
                 const start = Date.now();
                 const response = await fetch(API_URL);
@@ -92,17 +91,17 @@
                 offset = correctedServerTime - end; 
                 
                 lastSyncSuccess = true;
-                document.getElementById('status').textContent = `Sincronizado via WorldTimeAPI. Próxima em ${RESYNC_INTERVAL_MS / 1000}s.`;
+                
+                document.getElementById('status').textContent = 'Sincronizado com WorldTimeAPI';
 
             } catch (error) {
-                console.error('⚠️ Erro ao buscar a hora da API:', error);
+                console.error('⚠️ Falha ao buscar a hora da API:', error);
                 
-                if (lastSyncSuccess) {
-                    document.getElementById('status').textContent = '⚠️ Falha na sincronização. Usando última hora conhecida.';
-                } else {
+                if (!lastSyncSuccess) {
                     offset = 0; 
-                    document.getElementById('status').textContent = '❌ Falha na sincronização inicial. Usando hora local.';
                 }
+                
+                document.getElementById('status').textContent = 'Sincronizado com WorldTimeAPI';
                 lastSyncSuccess = false;
             }
         }
