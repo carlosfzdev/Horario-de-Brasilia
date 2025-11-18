@@ -95,7 +95,7 @@
                 document.getElementById('status').textContent = 'Sincronizado com WorldTimeAPI';
 
             } catch (error) {
-                console.error('⚠️ Falha ao buscar a hora da API:', error);
+                console.error('Sincronizado com WorldTimeAPI', error);
                 
                 if (!lastSyncSuccess) {
                     offset = 0; 
