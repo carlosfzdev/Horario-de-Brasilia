@@ -6,67 +6,68 @@
     <title>🕒 Hora Oficial de Brasília</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/0/05/Flag_of_Brazil.svg" type="icon">
     <style>
-    body {
-        font-family: Arial, sans-serif;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-        margin: 0;
-        background-image: url(https://i.ibb.co/6Jccs5jC/relogio.jpg);
-        background-size: cover;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-        background-color: #f4f4f9; 
-    }
-    #relogio-container {
-        background-color: rgba(255, 255, 255, 0.925); 
-        padding: 40px;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); 
-        text-align: center;
-    }
-    h1 {
-        color: #0056b3;
-        margin-bottom: 20px;
-    }
-    #relogio {
-        font-size: 4em;
-        font-weight: bold;
-        color: #333;
-        letter-spacing: 3px;
-    }
-    #status {
-        margin-top: 15px;
-        color: #666;
-        font-size: 0.9em;
-    }
-    #bandeira-brasil {
-    width: 80px;
-    height: auto; 
-    margin-bottom: 20px; 
-    border: 1px solid #ddd; 
-    border-radius: 3px; 
-    }
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-image: url(https://i.ibb.co/6Jccs5jC/relogio.jpg);
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-color: #f4f4f9; 
+        }
+        #relogio-container {
+            background-color: rgba(255, 255, 255, 0.925); 
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); 
+            text-align: center;
+        }
+        h1 {
+            color: #0056b3;
+            margin-bottom: 20px;
+        }
+        #relogio {
+            font-size: 4em;
+            font-weight: bold;
+            color: #333;
+            letter-spacing: 3px;
+        }
+        #status {
+            margin-top: 15px;
+            color: #666;
+            font-size: 0.9em;
+        }
+        #bandeira-brasil {
+            width: 80px;
+            height: auto; 
+            margin-bottom: 20px; 
+            border: 1px solid #ddd; 
+            border-radius: 3px; 
+        }
     </style>
 </head>
 <body>
 
     <div id="relogio-container">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Flag_of_Brazil.svg" 
-         alt="Bandeira do Brasil" 
-         id="bandeira-brasil"> 
-    <h1>Hora Oficial de Brasília</h1>
-    <div id="relogio">--:--:--</div>
-    <div id="status">Sincronizando...</div>
+        <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Flag_of_Brazil.svg" 
+             alt="Bandeira do Brasil" 
+             id="bandeira-brasil"> 
+        <h1>Hora Oficial de Brasília</h1>
+        <div id="relogio">--:--:--</div>
+        <div id="status">Iniciando sincronização...</div>
     </div>
 
     <script>
         const API_URL = 'http://worldtimeapi.org/api/timezone/America/Sao_Paulo';
-        let serverTimestamp = null;
-        let localTimestamp = null;
-        let offset = 0;
+        const RESYNC_INTERVAL_MS = 60000; 
+
+        let offset = 0; 
+        let lastSyncSuccess = false;
 
         async function fetchServerTime() {
             try {
@@ -82,7 +83,7 @@
                 
                 const data = await response.json();
                 
-                serverTimestamp = data.unixtime * 1000; 
+                const serverTimestamp = data.unixtime * 1000; 
                 
                 const rtt = end - start;
                 
@@ -90,13 +91,19 @@
                
                 offset = correctedServerTime - end; 
                 
-                document.getElementById('status').textContent = 'Sincronizado via WorldTimeAPI.';
-                console.log('Sincronização concluída. Offset:', offset.toFixed(0), 'ms');
+                lastSyncSuccess = true;
+                document.getElementById('status').textContent = `Sincronizado via WorldTimeAPI. Próxima em ${RESYNC_INTERVAL_MS / 1000}s.`;
 
             } catch (error) {
-                console.error('Erro ao buscar a hora da API:', error);
-                document.getElementById('status').textContent = 'Falha ao sincronizar. Usando hora local.';
-                offset = 0; 
+                console.error('⚠️ Erro ao buscar a hora da API:', error);
+                
+                if (lastSyncSuccess) {
+                    document.getElementById('status').textContent = '⚠️ Falha na sincronização. Usando última hora conhecida.';
+                } else {
+                    offset = 0; 
+                    document.getElementById('status').textContent = '❌ Falha na sincronização inicial. Usando hora local.';
+                }
+                lastSyncSuccess = false;
             }
         }
         
@@ -116,11 +123,15 @@
             document.getElementById('relogio').textContent = horaFormatada;
         }
 
+        function initClock() {
+            fetchServerTime();
+            
+            setInterval(updateClock, 1000); 
 
-        fetchServerTime().then(() => {
-             updateClock(); 
-             setInterval(updateClock, 1000); 
-        });
+            setInterval(fetchServerTime, RESYNC_INTERVAL_MS);
+        }
+        
+        initClock();
         
     </script>
 </body>
