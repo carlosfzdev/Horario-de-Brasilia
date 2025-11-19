@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🕒 Data e Hora Oficial de Brasília</title>
+    <title>🕒 Data e Hora Oficial de Brasília - Limitado</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/0/05/Flag_of_Brazil.svg" type="icon">
     <style>
         body {
@@ -47,8 +47,9 @@
         }
         #status {
             margin-top: 15px;
-            color: #666;
             font-size: 0.9em;
+            color: #d9534f; 
+            font-weight: bold;
         }
         #bandeira-brasil {
             width: 80px;
@@ -73,13 +74,52 @@
 
     <script>
         const API_URL = 'http://worldtimeapi.org/api/timezone/America/Sao_Paulo';
-        const RESYNC_INTERVAL_MS = 60000; 
+        const RESYNC_INTERVAL_MS = 60000;
+        
+        const RATE_LIMIT_COUNT = 5;
+        const RATE_LIMIT_WINDOW_MS = 60000;
+        const STORAGE_COUNT_KEY = 'syncCount';
+        const STORAGE_WINDOW_KEY = 'syncWindowStart';
 
         let offset = 0; 
         let lastSyncSuccess = false;
+        
+        function checkAndIncrementLimit() {
+            const now = Date.now();
+            let count = parseInt(localStorage.getItem(STORAGE_COUNT_KEY)) || 0;
+            let windowStart = parseInt(localStorage.getItem(STORAGE_WINDOW_KEY)) || now;
 
+            if (now - windowStart > RATE_LIMIT_WINDOW_MS) {
+                localStorage.setItem(STORAGE_WINDOW_KEY, now);
+                localStorage.setItem(STORAGE_COUNT_KEY, 1);
+                return { allowed: true, secondsLeft: 0 };
+            }
+            
+            if (count >= RATE_LIMIT_COUNT) {
+                const timeRemainingMs = RATE_LIMIT_WINDOW_MS - (now - windowStart);
+                const secondsLeft = Math.ceil(timeRemainingMs / 1000);
+                return { allowed: false, secondsLeft: secondsLeft };
+            }
+
+            localStorage.setItem(STORAGE_COUNT_KEY, count + 1);
+            return { allowed: true, secondsLeft: 0 };
+        }
+        
         async function fetchServerTime() {
+            const limit = checkAndIncrementLimit();
+            const statusElement = document.getElementById('status');
+
+            if (!limit.allowed) {
+                statusElement.style.color = '#d9534f'; 
+                statusElement.textContent = `Acesso Bloqueado. Excedeu ${RATE_LIMIT_COUNT} chamadas/min. Tente em ${limit.secondsLeft} segundos.`;
+                console.warn('Rate Limit Excedido. Bloqueando chamada à API.');
+                return;
+            }
+            
             try {
+                statusElement.style.color = '#5cb85c'; 
+                statusElement.textContent = 'Sincronizando...';
+
                 const start = Date.now();
                 const response = await fetch(API_URL);
                 const end = Date.now(); 
@@ -91,32 +131,30 @@
                 const data = await response.json();
                 
                 const serverTimestamp = data.unixtime * 1000; 
-                
                 const rtt = end - start;
-                
                 const correctedServerTime = serverTimestamp + (rtt / 2);
                 
                 offset = correctedServerTime - end; 
-                
                 lastSyncSuccess = true;
                 
-                document.getElementById('status').textContent = 'Sincronizado com WorldTimeAPI';
+                statusElement.style.color = '#5cb85c'; 
+                statusElement.textContent = 'Sincronizado com WorldTimeAPI';
 
             } catch (error) {
-                console.error('Sincronizado com WorldTimeAPI', error);
+                console.error('Erro na sincronização:', error);
                 
                 if (!lastSyncSuccess) {
                     offset = 0; 
                 }
                 
-                document.getElementById('status').textContent = 'Sincronizado com WorldTimeAPI';
+                statusElement.style.color = '#f0ad4e'; 
+                statusElement.textContent = 'Erro ao sincronizar. Usando hora local.';
                 lastSyncSuccess = false;
             }
         }
         
         function updateClock() {
             const localNow = Date.now();
-            
             const actualBrasiliaTime = new Date(localNow + offset);
 
             const dataFormatada = actualBrasiliaTime.toLocaleDateString('pt-BR', {
@@ -140,7 +178,7 @@
         }
 
         function initClock() {
-            fetchServerTime();
+            fetchServerTime(); 
             
             setInterval(updateClock, 1000); 
 
